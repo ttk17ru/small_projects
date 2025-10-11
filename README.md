@@ -2,7 +2,8 @@
 ---
 This repository contains my small programs and scripts.
 these scripts was made for learning so you might find
-some errors. Report me on electronano285@gmail.com
+some errors.
+Report me on electronano285@gmail.com
 ---
 ---
 ***About The Programmer***
