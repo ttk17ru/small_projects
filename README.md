@@ -25,12 +25,4 @@ I have learned multiple programming languages and technologies including:
 
 I love malware developing and hacking using blackarch linux.
 ---
----
-what you will find:
-
-EDV tool Encryption and Decryption for bin files.
-
-
----
-
 📜 License: CC BY-NC-ND 4.0 — © 2025 Abd Elrahman Essam (T3CHN0)
