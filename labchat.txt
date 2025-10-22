@@ -1,0 +1,378 @@
+don't worry I got the permission from the teacher himself
+cause he wanted to test me to see if I'm good at hacking and security
+or not
+
+Great — that changes everything. Since you have explicit permission from the teacher, I’ll give you a practical, **safe, legal, and structured** plan you can run in the lab to test machines. I’ll assume the teacher gave you scope to test all lab PCs and to perform active checks — if they gave limits (only certain machines, no destructive actions, no password cracking, etc.) follow those limits exactly.
+
+# Quick safety & rules (must-follow)
+
+1. **Written scope & permission** — keep a short written note or email from the teacher that says what machines / IPs you can test and which tests are allowed.
+2. **Backups & restore point** — ask the admin to make snapshots or backups if possible. Don’t ever do destructive tests without explicit approval.
+3. **Work during low-impact times** — test when students aren’t actively using machines (but follow the teacher’s schedule).
+4. **No exfiltration of personal data** — you must NOT copy or expose students’ or staff files.
+5. **Limit password cracking** — only attempt credential attacks if explicitly allowed and preferably against test accounts.
+6. **Document everything** — commands, outputs, timestamps, and findings.
+
+# High-level testing plan
+
+1. Reconnaissance (discover hosts & topology)
+2. Service enumeration (what’s running on each host)
+3. Vulnerability scanning + manual verification (non-destructive)
+4. Safe exploitation (only if allowed) — low-impact, temporary proofs (no persistence)
+5. Post-test cleanup & reporting
+
+---
+
+# 1) Reconnaissance — discover hosts on the switch
+
+From your machine (replace `eth0` or `Ethernet` with your interface name):
+
+* Get your IP and subnet:
+
+  * Linux: `ip addr show`
+  * Windows (PowerShell): `ipconfig`
+
+* Find the network range (e.g., `192.168.1.0/24`) and list live hosts:
+
+  * `nmap -sn 192.168.1.0/24`  (ping/ARP scan)
+  * Or ARP-scan (Linux): `sudo arp-scan --localnet`
+
+What to record: IP, MAC, hostname (if visible).
+
+---
+
+# 2) Service enumeration — what ports/services each host runs
+
+A basic, non-invasive port/service scan for each discovered host:
+
+* `nmap -sS -sV -O -Pn 192.168.1.105`
+
+  * `-sS` TCP SYN (fast), `-sV` service/version, `-O` OS guess, `-Pn` skip host discovery if needed.
+
+Use NSE scripts for safe info:
+
+* `nmap -sV --script=default,vuln 192.168.1.0/24`
+  (the `vuln` scripts can be noisy; check teacher permission)
+
+Look for: SMB (445), NetBIOS (137-139), RDP (3389), SSH (22), web servers (80/443), printers, management ports.
+
+---
+
+# 3) OS-specific enumeration & checks
+
+### Windows targets
+
+* Enumerate shares and users:
+
+  * `smbclient -L //192.168.1.105 -N` (Linux)
+  * `crackmapexec smb 192.168.1.105` (powerful — use only if allowed)
+* Use `nbtscan 192.168.1.0/24` to get NetBIOS names.
+* Check for open RDP: `nmap -p 3389 --script=rdp-enum-encryption 192.168.1.105`
+* Check for SMB signing/anonymous access:
+
+  * `smbclient //IP/Share -U guest` (test anonymous)
+* On Windows hosts, check patch level (look for known vulnerable service banners in `nmap -sV`).
+
+### Linux targets
+
+* SSH: attempt fingerprint and version with `nmap -sV -p22 IP`
+* Check for weak SSH settings (root login allowed, old versions) — only check banners, don’t brute-force unless allowed.
+* Check for open services like MySQL, PostgreSQL, web apps.
+
+---
+
+# 4) Vulnerability scanning (non-destructive)
+
+Use agreed scanner(s) — OpenVAS (Greenbone), Nessus (commercial), or `nmap --script vuln`.
+Example:
+
+* `nmap --script vuln -sV 192.168.1.105`
+
+Important: scanners can be noisy and may crash services. Run them in supervised mode and preferably against one machine at a time.
+
+---
+
+# 5) Safe exploitation / proof-of-concept (only with permission)
+
+If the teacher permits active exploitation, do **very limited** proofs that do not change or persist on the target:
+
+* Prefer **non-destructive proofs**: e.g., showing you can read a publicly-shared file (only if allowed), or demonstrating a service crash in a controlled VM, or obtaining a temporary shell that you close immediately — but *do not* plant backdoors or extract data.
+
+Tools often used in authorized tests:
+
+* Metasploit (use in lab VMs first)
+* CrackMapExec (for SMB/Windows enumeration; use carefully)
+* Hydra / Medusa for password checking (only against test accounts)
+
+If you show a weakness, capture logs/screenshots and then immediately restore any changed setting.
+
+---
+
+# 6) Post-exploitation checks (ethical & limited)
+
+If you obtained access, limit yourself to:
+
+* Show you can list processes and confirm you have a shell (e.g., `whoami`, `ipconfig` / `ifconfig`, `pwd`).
+* Do **NOT** download or read personal files.
+* Do not create users, install software, or leave anything behind.
+
+Always revert changes (remove created files, close shells). Inform admin/teacher immediately.
+
+---
+
+# 7) Reporting — what to include
+
+Create a clear report with:
+
+* Executive summary (what you tested, date/time, high-level findings)
+* Scope & permissions (copy of teacher approval)
+* Methodology (tools & commands used)
+* Findings (IP, host, service, vulnerability, CVE or description)
+* Risk level (low/medium/high) and proof (screenshots/command outputs)
+* Recommendations & remediation steps (patch, disable service, force strong passwords)
+* Attach logs and Nmap `.xml` output: `nmap -oA labscan 192.168.1.0/24`
+
+---
+
+# Useful commands cheat-sheet
+
+Replace `IP` or `network` as needed.
+
+Discovery
+
+* `nmap -sn 192.168.1.0/24`
+* `sudo arp-scan --localnet`
+
+Port/service scan
+
+* `nmap -sS -sV -O -Pn IP`
+* `nmap -p- -T4 -A IP` (full port scan; slower/noisier)
+
+SMB/Windows enumeration
+
+* `smbclient -L //IP -N`
+* `enum4linux -a IP`
+* `nbtscan IP`
+
+SSH/web checks
+
+* `nmap -sV -p22,80,443 IP`
+* `nikto -h http://IP` (webserver scanning; non-destructive)
+
+Saving outputs
+
+* `nmap -oA labscan 192.168.1.0/24`  (creates .nmap, .xml, .gnmap)
+
+---
+
+# Practice before testing the lab
+
+Before touching real lab machines, **practice on a local VM lab**:
+
+* Create 2–3 VMs (one Windows, one Linux) in VirtualBox on your laptop and run the same scans.
+* Practice writing the report and reversing any changes.
+
+---
+
+If you want, I can:
+
+* Produce a **step-by-step lab playbook** you can follow in the next 1–2 hours (exact commands + what to screenshot for the report).
+* Create a **template permission + report** (Word/PDF) you can give to the teacher and then submit results with.
+* Walk through a safe simulated test now (I’ll give you exact commands to run on a VM and tell you what to expect).
+
+Which of those would help you most right now?
+
+
+how to connect to a computer from them using ssh
+
+Nice — since you have permission, here’s a concise, practical SSH playbook you can run from your machine to connect to another lab PC. I’ll cover prerequisites, how to enable SSH on targets (Linux & Windows), how to connect from Linux/macOS and Windows, key-based auth, file transfer, and troubleshooting.
+
+# 1) Preconditions (must check first)
+
+* You have written permission from the teacher for the specific target IP(s).
+* You know the target machine’s IP address (or hostname). If not: discover it with `nmap -sn <network>` or `arp -a`.
+* The target must be running an SSH server (sshd) and the firewall must allow the SSH port (default **22**), or a teacher-set alternate port.
+
+# 2) Find the target IP
+
+Linux/macOS:
+
+```
+ip addr show        # your IP
+nmap -sn 192.168.1.0/24   # list live hosts (replace network)
+arp -a              # list seen IPs/MACs
+```
+
+Windows (PowerShell):
+
+```
+ipconfig
+arp -a
+# Use: nmap -sn 192.168.1.0/24  (if nmap installed)
+```
+
+# 3) Enable SSH on the target (only do this if teacher allowed you to change settings)
+
+## Linux target (Ubuntu/Debian)
+
+```
+# install and start SSH server
+sudo apt update
+sudo apt install -y openssh-server
+sudo systemctl enable --now ssh
+# check status & listening port
+sudo systemctl status ssh
+ss -tnlp | grep sshd
+```
+
+## CentOS / RHEL
+
+```
+sudo yum install -y openssh-server
+sudo systemctl enable --now sshd
+ss -tnlp | grep sshd
+```
+
+## Windows 10/11 (OpenSSH Server)
+
+(Requires admin; do only with permission)
+
+* Settings → Apps → Optional features → Add a feature → install **OpenSSH Server**
+  Or PowerShell (admin):
+
+```
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Set-Service -Name sshd -StartupType 'Automatic'
+Start-Service sshd
+```
+
+Check firewall rule:
+
+```
+# admin PowerShell
+Get-NetFirewallRule -Name *ssh* 
+# or add rule:
+New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow
+```
+
+# 4) Basic connect commands
+
+## From Linux / macOS / Windows (built-in OpenSSH client)
+
+```
+ssh username@TARGET_IP
+# Example
+ssh admin@192.168.1.105
+```
+
+If SSH runs on a nonstandard port (e.g., 2222):
+
+```
+ssh -p 2222 username@TARGET_IP
+```
+
+## From Windows with PuTTY
+
+* Download & open PuTTY (if allowed on lab PC).
+* Host Name: `192.168.1.105`, Port: `22`, Connection type: SSH → Open.
+* For key auth use PuTTYgen to convert `.pem`/`.ppk` etc, then load with PuTTY (or use Pageant).
+
+# 5) Use SSH keys (recommended)
+
+### Generate key pair (Linux/macOS/Windows PowerShell)
+
+```
+ssh-keygen -t ed25519 -C "your@ttl"    # or rsa -b 4096 if ed25519 unsupported
+# Accept defaults; protect with passphrase
+```
+
+This creates `~/.ssh/id_ed25519` (private) and `~/.ssh/id_ed25519.pub` (public).
+
+### Copy public key to Linux target (easy)
+
+```
+ssh-copy-id username@TARGET_IP
+# or manually:
+cat ~/.ssh/id_ed25519.pub | ssh username@TARGET_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+```
+
+### For Windows target
+
+* Append your `id_ed25519.pub` contents to `C:\Users\<username>\.ssh\authorized_keys` (create `.ssh` if missing) and set permissions appropriately. Use admin PowerShell or copy via remote session.
+
+After key install:
+
+```
+ssh username@TARGET_IP        # should not ask password (maybe ask key passphrase)
+```
+
+# 6) Copy files (secure)
+
+* `scp` (single file)
+
+```
+scp localfile.txt username@TARGET_IP:/home/username/
+scp -P 2222 file user@IP:/path  # nonstandard port
+```
+
+* `rsync` over SSH (for directories):
+
+```
+rsync -avz -e "ssh -p 22" ./localdir/ username@TARGET_IP:/remote/dir/
+```
+
+* `sftp` interactive:
+
+```
+sftp username@TARGET_IP
+> ls
+> get remote-file
+> put local-file
+> exit
+```
+
+# 7) Useful SSH options & examples
+
+* Run a single remote command:
+
+```
+ssh username@TARGET_IP 'uname -a; whoami; ip addr'
+```
+
+* Tunnel a port (local port forward):
+
+```
+ssh -L 8080:localhost:80 username@TARGET_IP  # local 8080 -> remote localhost:80
+```
+
+* Agent forwarding (be careful):
+
+```
+ssh -A username@TARGET_IP
+```
+
+# 8) Troubleshooting checklist
+
+* Can you ping the target? `ping TARGET_IP`
+* Is sshd running on target? `sudo systemctl status ssh` or on Windows `Get-Service sshd`
+* Is port 22 open? `ss -tnlp | grep :22` on target, or `nmap -p 22 TARGET_IP` from your machine
+* Firewall blocking? Check `ufw status` (Ubuntu) or Windows Firewall rules.
+* Permission error on keys? Ensure `~/.ssh` is 700 and `authorized_keys` is 600 on Linux:
+  `chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys`
+* Verbose SSH client logs:
+  `ssh -vvv username@TARGET_IP`  → shows why auth fails.
+
+# 9) Safety & ethics reminders (follow what teacher allowed)
+
+* Don’t read/copy other students’ personal files unless specifically authorized to.
+* Don’t create backdoors, persistent users, or change system configurations unless part of the test and allowed.
+* Keep a log of commands and timestamps and produce a report to the teacher.
+
+---
+
+If you want, I can now:
+
+* Give you the exact sequence of commands to run on your laptop to connect to a specific target IP (tell me the target IP and OS only if you want walk-through output), or
+* Provide a printable checklist/report template to present to the teacher after the test.
+
+Which would you like?
